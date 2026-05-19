@@ -1,4 +1,4 @@
-# MouHidInputHook (MapperGang fork)
+# MouHidInputHook (XInput Remapper fork)
 
 > **This is a fork** of [`changeofpace/MouHidInputHook`](https://github.com/changeofpace/MouHidInputHook), adapted for the needs of [**MapperGang**](https://github.com/zytkas/MapperGang) — an application that maps mouse and keyboard to a virtual gamepad via ViGEm.
 >
