@@ -1,11 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.271
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36518.9
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouHidInputHook", "MouHidInputHook\MouHidInputHook.vcxproj", "{B1633E0D-8DBF-4913-AAF7-8E3FB891FDC9}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouHidMonitor", "MouHidMonitor\MouHidMonitor.vcxproj", "{84AFD7F5-416B-455C-81ED-1C7E5B11CDB6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "usermode", "usermode\usermode.vcxproj", "{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MouHidDll", "MouHidDll\MouHidDll.vcxproj", "{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,6 +39,22 @@ Global
 		{84AFD7F5-416B-455C-81ED-1C7E5B11CDB6}.Release|x64.Build.0 = Release|x64
 		{84AFD7F5-416B-455C-81ED-1C7E5B11CDB6}.Release|x86.ActiveCfg = Release|Win32
 		{84AFD7F5-416B-455C-81ED-1C7E5B11CDB6}.Release|x86.Build.0 = Release|Win32
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Debug|x64.ActiveCfg = Debug|x64
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Debug|x64.Build.0 = Debug|x64
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Debug|x86.ActiveCfg = Debug|Win32
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Debug|x86.Build.0 = Debug|Win32
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Release|x64.ActiveCfg = Release|x64
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Release|x64.Build.0 = Release|x64
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Release|x86.ActiveCfg = Release|Win32
+		{4EA0C7B7-424A-40CF-8E04-5DCFEEF10E2A}.Release|x86.Build.0 = Release|Win32
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Debug|x64.ActiveCfg = Debug|x64
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Debug|x64.Build.0 = Debug|x64
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Debug|x86.ActiveCfg = Debug|Win32
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Debug|x86.Build.0 = Debug|Win32
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Release|x64.ActiveCfg = Release|x64
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Release|x64.Build.0 = Release|x64
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Release|x86.ActiveCfg = Release|Win32
+		{EA1FEC60-DFDE-425E-BDD1-5ECAA398631D}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -51,6 +51,13 @@ for more information.
         METHOD_BUFFERED,                    \
         FILE_ANY_ACCESS)
 
+#define IOCTL_SET_MOUSE_BLOCKING           \
+    CTL_CODE(FILE_DEVICE_MOUHID_INPUT_HOOK, 0x803, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+#define IOCTL_READ_MOUSE_DATA              \
+    CTL_CODE(FILE_DEVICE_MOUHID_INPUT_HOOK, 0x804, METHOD_BUFFERED, FILE_ANY_ACCESS)
+
+
 //=============================================================================
 // IOCTL_QUERY_MOUHID_INPUT_MONITOR
 //=============================================================================
@@ -59,3 +66,9 @@ typedef struct _QUERY_MOUHID_INPUT_MONITOR_REPLY
     BOOLEAN Enabled;
 
 } QUERY_MOUHID_INPUT_MONITOR_REPLY, *PQUERY_MOUHID_INPUT_MONITOR_REPLY;
+
+typedef struct _SET_MOUSE_BLOCKING_REQUEST {
+
+    BOOLEAN BlockMouse;
+
+} SET_MOUSE_BLOCKING_REQUEST, * PSET_MOUSE_BLOCKING_REQUEST;

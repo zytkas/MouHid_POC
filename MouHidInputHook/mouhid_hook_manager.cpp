@@ -1,4 +1,4 @@
-/*++
+﻿/*++
 
 Copyright (c) 2019 changeofpace. All rights reserved.
 
@@ -100,6 +100,10 @@ typedef struct _MOUHID_HOOK_MANAGER
 //=============================================================================
 EXTERN_C static MOUHID_HOOK_MANAGER g_MhkManager = {};
 
+volatile BOOLEAN g_BlockMouseInput = FALSE;
+LIST_ENTRY g_PendingIrpQueue;
+KSPIN_LOCK g_IrpQueueLock;
+BOOLEAN g_IrpQueueInitialized = FALSE;
 
 //=============================================================================
 // Private Prototypes
@@ -224,6 +228,10 @@ Remarks:
     HANDLE MousePnpNotificationHandle = NULL;
     BOOLEAN fCallbackRegistered = FALSE;
     NTSTATUS ntstatus = STATUS_SUCCESS;
+    InitializeListHead(&g_PendingIrpQueue);
+    KeInitializeSpinLock(&g_IrpQueueLock);
+    g_IrpQueueInitialized = TRUE;
+
 
     DBG_PRINT("Loading %s.", MODULE_TITLE);
 
@@ -933,6 +941,54 @@ MhkpUnhookMouHidDeviceObjects()
 }
 
 
+VOID MhkpWriteToBuffer(PMOUSE_INPUT_DATA pData)
+{
+    if (g_InputBuffer.Count == INPUT_BUFFER_SIZE) {
+        g_InputBuffer.Tail = (g_InputBuffer.Tail + 1) % INPUT_BUFFER_SIZE;
+        g_InputBuffer.Count--;
+    }
+    g_InputBuffer.Buffer[g_InputBuffer.Head] = *pData;
+    g_InputBuffer.Head = (g_InputBuffer.Head + 1) % INPUT_BUFFER_SIZE;
+    g_InputBuffer.Count++;
+}
+
+BOOLEAN MhkpReadFromBuffer(PMOUSE_INPUT_DATA pOut)
+{
+    if (g_InputBuffer.Count == 0) return FALSE;
+    *pOut = g_InputBuffer.Buffer[g_InputBuffer.Tail];
+    g_InputBuffer.Tail = (g_InputBuffer.Tail + 1) % INPUT_BUFFER_SIZE;
+    g_InputBuffer.Count--;
+    return TRUE;
+}
+
+
+_Use_decl_annotations_
+EXTERN_C
+NTSTATUS
+MhkSetMouseBlocking(_In_ BOOLEAN BlockMouse)
+{
+    BOOLEAN OldValue = (BOOLEAN)InterlockedExchange8(
+        (volatile CHAR*)&g_BlockMouseInput,
+        (CHAR)BlockMouse);
+
+    DBG_PRINT("Mouse blocking changed: %s -> %s (Buffers Flushed)",
+        OldValue ? "BLOCKED" : "ALLOWED",
+        BlockMouse ? "BLOCKED" : "ALLOWED");
+
+    return STATUS_SUCCESS;
+}
+
+
+_Use_decl_annotations_
+EXTERN_C
+BOOLEAN
+MhkIsMouseBlocked()
+{
+    return g_BlockMouseInput;
+}
+
+
+
 _Use_decl_annotations_
 EXTERN_C
 static
@@ -944,32 +1000,6 @@ MhkpServiceCallbackHook(
     PMOUSE_INPUT_DATA pInputDataEnd,
     PULONG pnInputDataConsumed
 )
-/*++
-
-Routine Description:
-
-    The mouse class service callback hook.
-
-Parameters:
-
-    pDeviceObject - Pointer to the mouse class device object to receive the
-        mouse input data packets.
-
-    pInputDataStart - Pointer to the array of input packets to be copied to the
-        class data queue.
-
-    pInputDataEnd - Pointer to the input packet which marks the end of the
-        input packet array.
-
-    pnInputDataConsumed - Returns the number of input packets copied to the
-        class data queue by the routine.
-
-Remarks:
-
-    This routine is installed in the 'ClassService' field of the CONNECT_DATA
-    object inside the device extension of a hooked MouHid device object.
-
---*/
 {
     PMOUHID_HOOK_CONTEXT pHookContext = NULL;
     ULONG i = 0;
@@ -978,25 +1008,77 @@ Remarks:
 
     pHookContext = g_MhkManager.HookContext;
 
-    //
-    // Map the target class device object to its original service callback.
-    //
     for (i = 0; i < pHookContext->NumberOfDeviceObjects; ++i)
     {
         pElement = &pHookContext->DeviceObjectArray[i];
-
         if (pElement->ConnectData->ClassDeviceObject == pDeviceObject)
         {
             pServiceCallbackOriginal = pElement->ServiceCallbackOriginal;
             break;
         }
     }
-    //
+
     if (!pServiceCallbackOriginal)
     {
         ERR_PRINT("Unhandled class device object: %p", pDeviceObject);
         DEBUG_BREAK;
         goto exit;
+    }
+
+    if (g_BlockMouseInput)
+    {
+        ULONG packetsCount = (ULONG)(pInputDataEnd - pInputDataStart);
+        KIRQL irql;
+
+        KeAcquireSpinLock(&g_IrpQueueLock, &irql);
+
+        for (PMOUSE_INPUT_DATA p = pInputDataStart; p < pInputDataEnd; ++p)
+        {
+            MhkpWriteToBuffer(p);
+        }
+
+        while (!IsListEmpty(&g_PendingIrpQueue) && g_InputBuffer.Count > 0)
+        {
+            PLIST_ENTRY entry = g_PendingIrpQueue.Flink;
+            PIRP pendingIrp = CONTAINING_RECORD(entry, IRP, Tail.Overlay.ListEntry);
+
+            if (IoSetCancelRoutine(pendingIrp, NULL) != NULL)
+            {
+                RemoveEntryList(entry);
+
+                PMOUSE_INPUT_DATA buffer = (PMOUSE_INPUT_DATA)pendingIrp->AssociatedIrp.SystemBuffer;
+                ULONG maxPackets = (ULONG)(pendingIrp->IoStatus.Information / sizeof(MOUSE_INPUT_DATA));
+                ULONG copied = 0;
+
+                while (copied < maxPackets && g_InputBuffer.Count > 0)
+                {
+                    MhkpReadFromBuffer(&buffer[copied]);
+                    copied++;
+                }
+
+                pendingIrp->IoStatus.Information = copied * sizeof(MOUSE_INPUT_DATA);
+                pendingIrp->IoStatus.Status = STATUS_SUCCESS;
+
+                KeReleaseSpinLock(&g_IrpQueueLock, irql);
+                InterlockedDecrement(&g_TotalPendingIrps);
+                InterlockedIncrement(&g_IrpsCompletedInHook);
+                IoCompleteRequest(pendingIrp, IO_NO_INCREMENT);
+                DBG_PRINT(">>> IRP COMPLETED IN HOOK! Total pending: %d, Total completed: %d, Packets: %lu",
+                    g_TotalPendingIrps, g_IrpsCompletedInHook, copied); 
+                KeAcquireSpinLock(&g_IrpQueueLock, &irql);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        KeReleaseSpinLock(&g_IrpQueueLock, irql);
+
+        *pnInputDataConsumed = packetsCount;
+        DBG_PRINT("BLOCKED: Consumed %lu packets, buffer count: %lu",
+            packetsCount, g_InputBuffer.Count);
+        return;
     }
 
     g_MhkManager.RegistrationEntry->HookCallback(

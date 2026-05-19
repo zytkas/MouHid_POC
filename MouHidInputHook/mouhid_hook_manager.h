@@ -168,3 +168,41 @@ NTSTATUS
 MhkUnregisterCallbacks(
     _In_ HANDLE RegistrationHandle
 );
+
+
+
+//=============================================================================
+// Block mouse constans and pending IRP queue
+
+#define INPUT_BUFFER_SIZE 1024
+EXTERN_C volatile BOOLEAN g_BlockMouseInput;
+
+EXTERN_C extern LIST_ENTRY g_PendingIrpQueue;
+
+EXTERN_C extern KSPIN_LOCK g_IrpQueueLock;
+
+static volatile LONG g_TotalPendingIrps = 0;
+static volatile LONG g_IrpsCompletedInHook = 0;
+
+EXTERN_C
+NTSTATUS
+MhkSetMouseBlocking(
+    _In_ BOOLEAN BlockMouse
+);
+
+_Use_decl_annotations_
+EXTERN_C
+BOOLEAN
+MhkIsMouseBlocked();
+ 
+BOOLEAN MhkpReadFromBuffer(PMOUSE_INPUT_DATA pOut);
+VOID MhkpWriteToBuffer(PMOUSE_INPUT_DATA pData);
+
+typedef struct _MHK_RING_BUFFER {
+    MOUSE_INPUT_DATA Buffer[INPUT_BUFFER_SIZE];
+    ULONG Head;
+    ULONG Tail;
+    ULONG Count;
+} MHK_RING_BUFFER, * PMHK_RING_BUFFER;
+
+static MHK_RING_BUFFER g_InputBuffer = { 0 };
